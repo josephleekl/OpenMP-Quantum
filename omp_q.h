@@ -2,19 +2,14 @@
 #define omp_q_H
 
 #include <string>
-#include <format>
 #include <iostream>
 #include <fstream>
 
-//For Qiskit Simulator
+// For Qiskit Simulator
 #include <Python.h>
 
-// Measurement result: <state, count>
-#include <map>
-typedef std::map<std::string, int> measurement;
-
 // Call Python Qiskit simulator
-int qiskit_simulate(std::string qasm_filename, measurement &result)
+int qiskit_simulate(std::string qasm_filename) 111
 {
     Py_Initialize();
     PyObject *pName, *pModule, *pFunc, *pArgs, *pReturnValue;
@@ -31,17 +26,15 @@ int qiskit_simulate(std::string qasm_filename, measurement &result)
             pReturnValue = PyObject_CallObject(pFunc, pArgs);
             if (pReturnValue != NULL && PyDict_Check(pReturnValue))
             {
-                // Convert Python dictionary to std::map
-
-                PyObject *pKey, *pValue;
+                // TO UPDATE: change measurement result data type
+                /* PyObject *pKey, *pValue;
                 Py_ssize_t pos = 0;
-
                 while (PyDict_Next(pReturnValue, &pos, &pKey, &pValue))
                 {
                     std::string key = PyUnicode_AsUTF8(pKey);
                     int value = PyLong_AsLong(pValue);
                     result[key] = value;
-                }
+                } */
                 Py_DECREF(pReturnValue);
             }
             else
@@ -73,39 +66,128 @@ int qiskit_simulate(std::string qasm_filename, measurement &result)
 }
 
 // quantum registers and operations in QASM
-struct omp_q_reg {
+struct omp_q_reg
+{
     int num_q = 0;
-    std::string ops_qasm = ""; 
-}; 
+    std::string ops_qasm = "";
+};
 
-omp_q_reg omp_create_q_reg(int num_q){
+omp_q_reg omp_create_q_reg(int num_q)
+{
     omp_q_reg q_reg;
     q_reg.num_q = num_q;
-    q_reg.ops_qasm = std::vformat("OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[{}];\n", std::make_format_args(num_q));
+    q_reg.ops_qasm = "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[" + std::to_string(num_q) + "];\n";
     return q_reg;
-
 }
 
-// Quantum Gates
-void omp_q_h(omp_q_reg &q_reg, int target){
-    q_reg.ops_qasm += std::vformat("h q[{}];\n", std::make_format_args(target));
+// Quantum Gates (specified in qelib1.inc)
+
+void omp_q_cx(omp_q_reg &q_reg, int control, int target)
+{
+    q_reg.ops_qasm += "cx q[" + std::to_string(control) + "], q[" + std::to_string(target) + "];\n";
 }
 
-void omp_q_cx(omp_q_reg &q_reg, int control, int target){
-    q_reg.ops_qasm += std::vformat("cx q[{}], q[{}];\n", std::make_format_args(control,  target));
+void omp_q_u3(omp_q_reg &q_reg, int target, double theta, double phi, double lambda)
+{
+    q_reg.ops_qasm += "u3(" + std::to_string(theta) + "," + std::to_string(phi) + "," + std::to_string(lambda) + ") q[" + std::to_string(target) + "];\n";
+}
+
+void omp_q_u2(omp_q_reg &q_reg, int target, double phi, double lambda)
+{
+    q_reg.ops_qasm += "u2(" + std::to_string(phi) + "," + std::to_string(lambda) + ") q[" + std::to_string(target) + "];\n";
+}
+
+void omp_q_u1(omp_q_reg &q_reg, int target, double lambda)
+{
+    q_reg.ops_qasm += "u1(" + std::to_string(lambda) + ") q[" + std::to_string(target) + "];\n";
+}
+
+void omp_q_id(omp_q_reg &q_reg, int target)
+{
+    q_reg.ops_qasm += "id q[" + std::to_string(target) + "];\n";
+}
+
+void omp_q_x(omp_q_reg &q_reg, int target)
+{
+    q_reg.ops_qasm += "x q[" + std::to_string(target) + "];\n";
+}
+void omp_q_y(omp_q_reg &q_reg, int target)
+{
+    q_reg.ops_qasm += "y q[" + std::to_string(target) + "];\n";
+}
+void omp_q_h(omp_q_reg &q_reg, int target)
+{
+    q_reg.ops_qasm += "h q[" + std::to_string(target) + "];\n";
+}
+void omp_q_z(omp_q_reg &q_reg, int target)
+{
+    q_reg.ops_qasm += "z q[" + std::to_string(target) + "];\n";
+}
+void omp_q_s(omp_q_reg &q_reg, int target)
+{
+    q_reg.ops_qasm += "s q[" + std::to_string(target) + "];\n";
+}
+void omp_q_sdg(omp_q_reg &q_reg, int target)
+{
+    q_reg.ops_qasm += "sdg q[" + std::to_string(target) + "];\n";
+}
+void omp_q_t(omp_q_reg &q_reg, int target)
+{
+    q_reg.ops_qasm += "t q[" + std::to_string(target) + "];\n";
+}
+void omp_q_tdg(omp_q_reg &q_reg, int target)
+{
+    q_reg.ops_qasm += "tdg q[" + std::to_string(target) + "];\n";
+}
+void omp_q_rx(omp_q_reg &q_reg, double theta)
+{
+    q_reg.ops_qasm += "rx(" + std::to_string(theta) + ") q[" + std::to_string(target) + "];\n";
+}
+void omp_q_ry(omp_q_reg &q_reg, double theta)
+{
+    q_reg.ops_qasm += "ry(" + std::to_string(theta) + ") q[" + std::to_string(target) + "];\n";
+}
+void omp_q_rz(omp_q_reg &q_reg, double phi)
+{
+    q_reg.ops_qasm += "rz(" + std::to_string(phi) + ") q[" + std::to_string(target) + "];\n";
+}
+void omp_q_cz(omp_q_reg &q_reg, int control, int target)
+{
+    q_reg.ops_qasm += "cz q[" + std::to_string(control) + "], q[" + std::to_string(target) + "];\n";
+}
+void omp_q_cy(omp_q_reg &q_reg, int control, int target)
+{
+    q_reg.ops_qasm += "cy q[" + std::to_string(control) + "], q[" + std::to_string(target) + "];\n";
+}
+void omp_q_ch(omp_q_reg &q_reg, int control, int target)
+{
+    q_reg.ops_qasm += "ch q[" + std::to_string(control) + "], q[" + std::to_string(target) + "];\n";
+}
+void omp_q_ccx(omp_q_reg &q_reg, int control_1, int control_2, int target)
+{
+    q_reg.ops_qasm += "ccx q[" + std::to_string(control_1) + "], q[" + std::to_string(control_2) + "], q[" + std::to_string(target) + "];\n";
+}
+void omp_q_crz(omp_q_reg &q_reg, int control, int target, double lambda)
+{
+    q_reg.ops_qasm += "crz(" + std::to_string(lambda) + " q[" + std::to_string(control) + "], q[" + std::to_string(target) + "];\n";
+}
+void omp_q_cu1(omp_q_reg &q_reg, int control, int target, double lambda)
+{
+    q_reg.ops_qasm += "cu1(" + std::to_string(lambda) + " q[" + std::to_string(control) + "], q[" + std::to_string(target) + "];\n";
+}
+void omp_q_cu3(, int control, int target, double theta, double phi, double lambda) *
+{
+    q_reg.ops_qasm += "cu3(" + std::to_string(theta) + ", " + std::to_string(phi) + ", " + std::to_string(lambda) + " q[" + std::to_string(control) + "], q[" + std::to_string(target) + "];\n";
 }
 
 // Simulate and measure
-int omp_q_measure(omp_q_reg &q_reg, measurement &result){
+int omp_q_measure(omp_q_reg &q_reg)
+{
     // Add final measurement QASM instruction
-    q_reg.ops_qasm += std::vformat("creg c[{}];\nmeasure q -> c;\n",std::make_format_args(q_reg.num_q));
-    std::cout << "\nomp_q QASM string: \n\"\"\"\n";
-    std::cout << q_reg.ops_qasm;
-    std::cout << "\n\"\"\"\n";
+    q_reg.ops_qasm += "creg c[" + std::to_string(q_reg.num_q) + "];\nmeasure q -> c;\n";
 
     // Save to qasm string to file
-    std::string qasmfilename = "test.qasm";
-    std::cout << "omp_q QASM saved to: " << qasmfilename << "\n\n\n";
+    std::string qasmfilename = "circuit.qasm";
     std::ofstream qasmfile(qasmfilename);
     if (qasmfile.is_open())
     {
@@ -113,15 +195,17 @@ int omp_q_measure(omp_q_reg &q_reg, measurement &result){
         qasmfile.close();
     }
 
-    // Simulate 
-    qiskit_simulate(qasmfilename, result);
+    // Simulate
+    qiskit_simulate(qasmfilename);
     return 0;
 }
 
 // To do:
-// Add other gates
-// QIR:
+// - declare target?
+// - Measurement Result definition
+// - QIR:
 // call void @__quantum__qis__h(%Qubit* %qb1)
 // call void @__quantum__qis__cnot(%Qubit* %qb1, %Qubit* %qb2)
+//
 
 #endif /*omp_q_H*/
