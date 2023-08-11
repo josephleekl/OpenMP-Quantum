@@ -9,9 +9,20 @@
 #include <Python.h>
 
 // Call Python Qiskit simulator
-int qiskit_simulate(std::string qasm_filename) 111
+void omp_q_python_initialize()
 {
     Py_Initialize();
+}
+
+void omp_q_python_finalize()
+{
+    Py_Finalize();
+}
+
+
+int qiskit_simulate(std::string qasm_filename, int num_qubits, double meas_probabilities[])
+{
+    
     PyObject *pName, *pModule, *pFunc, *pArgs, *pReturnValue;
     pName = PyUnicode_DecodeFSDefault("qasm_simulator");
     pModule = PyImport_Import(pName);
@@ -22,19 +33,19 @@ int qiskit_simulate(std::string qasm_filename) 111
         pFunc = PyObject_GetAttrString(pModule, "simulate");
         if (pFunc && PyCallable_Check(pFunc))
         {
-            pArgs = PyTuple_Pack(1, pQasmFile);
+            pArgs = PyTuple_Pack(2, pQasmFile, PyLong_FromLong(num_qubits));
             pReturnValue = PyObject_CallObject(pFunc, pArgs);
-            if (pReturnValue != NULL && PyDict_Check(pReturnValue))
+            if (pReturnValue != NULL && PyList_Check(pReturnValue))
             {
-                // TO UPDATE: change measurement result data type
-                /* PyObject *pKey, *pValue;
-                Py_ssize_t pos = 0;
-                while (PyDict_Next(pReturnValue, &pos, &pKey, &pValue))
+
+                // Convert Python list to array of doubles
+                Py_ssize_t listSize = PyList_Size(pReturnValue);
+
+                for (Py_ssize_t i = 0; i < listSize; ++i)
                 {
-                    std::string key = PyUnicode_AsUTF8(pKey);
-                    int value = PyLong_AsLong(pValue);
-                    result[key] = value;
-                } */
+                    PyObject *pItem = PyList_GetItem(pReturnValue, i);
+                    meas_probabilities[i] = PyFloat_AsDouble(pItem);
+                }
                 Py_DECREF(pReturnValue);
             }
             else
@@ -61,7 +72,6 @@ int qiskit_simulate(std::string qasm_filename) 111
         fprintf(stderr, "Failed to load \"%s\"\n", qasm_filename.c_str());
         return 1;
     }
-    Py_Finalize();
     return 0;
 }
 
@@ -78,6 +88,12 @@ omp_q_reg omp_create_q_reg(int num_q)
     q_reg.num_q = num_q;
     q_reg.ops_qasm = "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[" + std::to_string(num_q) + "];\n";
     return q_reg;
+}
+
+void omp_q_reset(omp_q_reg &q_reg)
+{
+    q_reg.ops_qasm = "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[" + std::to_string(q_reg.num_q) + "];\n";
+    ;
 }
 
 // Quantum Gates (specified in qelib1.inc)
@@ -139,15 +155,15 @@ void omp_q_tdg(omp_q_reg &q_reg, int target)
 {
     q_reg.ops_qasm += "tdg q[" + std::to_string(target) + "];\n";
 }
-void omp_q_rx(omp_q_reg &q_reg, double theta)
+void omp_q_rx(omp_q_reg &q_reg, int target, double theta)
 {
     q_reg.ops_qasm += "rx(" + std::to_string(theta) + ") q[" + std::to_string(target) + "];\n";
 }
-void omp_q_ry(omp_q_reg &q_reg, double theta)
+void omp_q_ry(omp_q_reg &q_reg, int target, double theta)
 {
     q_reg.ops_qasm += "ry(" + std::to_string(theta) + ") q[" + std::to_string(target) + "];\n";
 }
-void omp_q_rz(omp_q_reg &q_reg, double phi)
+void omp_q_rz(omp_q_reg &q_reg, int target, double phi)
 {
     q_reg.ops_qasm += "rz(" + std::to_string(phi) + ") q[" + std::to_string(target) + "];\n";
 }
@@ -175,13 +191,13 @@ void omp_q_cu1(omp_q_reg &q_reg, int control, int target, double lambda)
 {
     q_reg.ops_qasm += "cu1(" + std::to_string(lambda) + " q[" + std::to_string(control) + "], q[" + std::to_string(target) + "];\n";
 }
-void omp_q_cu3(, int control, int target, double theta, double phi, double lambda) *
+void omp_q_cu3(omp_q_reg &q_reg, int control, int target, double theta, double phi, double lambda)
 {
     q_reg.ops_qasm += "cu3(" + std::to_string(theta) + ", " + std::to_string(phi) + ", " + std::to_string(lambda) + " q[" + std::to_string(control) + "], q[" + std::to_string(target) + "];\n";
 }
 
 // Simulate and measure
-int omp_q_measure(omp_q_reg &q_reg)
+int omp_q_measure(omp_q_reg &q_reg, double meas_probabilities[])
 {
     // Add final measurement QASM instruction
     q_reg.ops_qasm += "creg c[" + std::to_string(q_reg.num_q) + "];\nmeasure q -> c;\n";
@@ -196,7 +212,7 @@ int omp_q_measure(omp_q_reg &q_reg)
     }
 
     // Simulate
-    qiskit_simulate(qasmfilename);
+    qiskit_simulate(qasmfilename, q_reg.num_q, meas_probabilities);
     return 0;
 }
 
