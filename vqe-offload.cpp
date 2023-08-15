@@ -51,15 +51,9 @@ double vqe_quantum_evaluation(unsigned n, const double* angles, double* grad, vo
     energy += 0.39793742484318045 * (probabilities[0] - probabilities[1] + probabilities[2] - probabilities[3]); // signs from eigenvalues of eigenstates
 
     // ZI
-    omp_q_reset(q_regs);
-    prepareState(q_regs, angles);
-    omp_q_measure(q_regs, probabilities);
     energy += -0.39793742484318045 * (probabilities[0] + probabilities[1] - probabilities[2] - probabilities[3]); // signs from eigenvalues of eigenstates
 
     // ZZ
-    omp_q_reset(q_regs);
-    prepareState(q_regs, angles);
-    omp_q_measure(q_regs, probabilities);
     energy += -0.01128010425623538 * (probabilities[0] - probabilities[1] - probabilities[2] + probabilities[3]); // signs from eigenvalues of eigenstates
 
     // XX
@@ -104,10 +98,10 @@ int main(){
     double angles[8] = {4.1, -5.1, -3.1, 2.1, -4.1, 1.1, 4.1, -4.1};
     nlopt_set_min_objective(classical_optimizer, vqe_quantum_evaluation, NULL);
     nlopt_set_ftol_rel(classical_optimizer, 1e-3);
-    //vqe_quantum_evaluation(0,angles,NULL,NULL); // Evaluate once
+    vqe_quantum_evaluation(0,angles,NULL,NULL); // Evaluate once
     
     double minEnergy;
-    nlopt_optimize(classical_optimizer, angles, &minEnergy); // Minimizer
+    //nlopt_optimize(classical_optimizer, angles, &minEnergy); // Minimizer
     std::cout << "found minimum after " << vqe_interation_count << " evaluations. Minimum energy = " << minEnergy << std::endl;
 
     nlopt_destroy(classical_optimizer);
