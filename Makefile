@@ -8,6 +8,7 @@
 
 # Local
 CXX = g++-13
+CXXFLAGS = -g -O3
 PYTHON_DIR = /Users/jlee7/miniconda3/envs/omp_q
 NLOPT_DIR = /Users/jlee7/Desktop/EPCC/projects/quantum/openmp/OpenMP-Quantum/nlopt/install
 LDFLAGS = -lpython3.11 -lnlopt -L$(PYTHON_DIR)/lib -L$(NLOPT_DIR)/lib

@@ -11,6 +11,10 @@ int vqe_interation_count = 0;
 // Prepare quantum state given angle parameters: 2 layers
 void prepareState(omp_q_reg &q_reg , const double* parameters)
 {
+    omp_q_h(q_reg, 0);
+    omp_q_h(q_reg, 1);
+    omp_q_h(q_reg, 2);
+    omp_q_h(q_reg, 3);
     // U_C
     omp_q_cx(q_reg, 0, 1);
     omp_q_rz(q_reg, 1, parameters[0]);
@@ -56,51 +60,27 @@ double vqe_quantum_evaluation(unsigned n, const double* angles, double* grad, vo
 {
     ++vqe_interation_count;
 
-    // Graph: [(0, 1), (0, 3), (1, 2), (2, 3)]
 
     double energy;
     double probabilities[16] = { 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.};
-    #pragma omp target map(to: angles) map(from:probabilities, energy)
-    {
-
+    //#pragma omp target map(to: angles) map(from:probabilities, energy)
+    //{
+    
         energy = 0.;
         omp_q_reg q_regs = omp_create_q_reg(4);
         prepareState(q_regs, angles);
-        omp_q_measure(q_regs, probabilities);
 
-        // (0, 1)
-        energy +=  (
-            probabilities[0] - probabilities[1] - probabilities[2] + probabilities[3]
-            +probabilities[4] - probabilities[5] - probabilities[6] + probabilities[7]
-            +probabilities[8] - probabilities[9] - probabilities[10] + probabilities[11]
-            +probabilities[12] - probabilities[13] - probabilities[14] + probabilities[15]
-        ); // signs from eigenvalues of eigenstates
+        // Graph: [(0, 1), (0, 3), (1, 2), (2, 3)]
+        omp_q_observable hamiltonian = omp_q_create_observable(4);
+        omp_q_observable_add_term(hamiltonian, "IIZZ", 1.);
+        omp_q_observable_add_term(hamiltonian, "ZZII", 1.);
+        omp_q_observable_add_term(hamiltonian, "ZIIZ", 1.);
+        omp_q_observable_add_term(hamiltonian, "IZZI", 1.);
 
-        // (0, 3)
-        energy +=  (
-            probabilities[0] - probabilities[1] + probabilities[2] - probabilities[3]
-            +probabilities[4] - probabilities[5] + probabilities[6] - probabilities[7]
-            -probabilities[8] + probabilities[9] - probabilities[10] + probabilities[11]
-            -probabilities[12] + probabilities[13] - probabilities[14] + probabilities[15]
-        ); // signs from eigenvalues of eigenstates
+        energy = omp_q_expval(q_regs, hamiltonian, probabilities);
 
-         // (1, 2)
-        energy += (
-            probabilities[0] + probabilities[1] - probabilities[2] - probabilities[3]
-            +probabilities[4] + probabilities[5] - probabilities[6] - probabilities[7]
-            +probabilities[8] + probabilities[9] - probabilities[10] - probabilities[11]
-            +probabilities[12] + probabilities[13] - probabilities[14] - probabilities[15]
-        ); // signs from eigenvalues of eigenstates
-
-         // (0, 3)
-        energy +=  (
-            probabilities[0] + probabilities[1] + probabilities[2] + probabilities[3]
-            -probabilities[4] - probabilities[5] - probabilities[6] - probabilities[7]
-            -probabilities[8] - probabilities[9] - probabilities[10] - probabilities[11]
-            +probabilities[12] + probabilities[13] + probabilities[14] + probabilities[15]
-        ); // signs from eigenvalues of eigenstates
     
-    }
+    //}
     
     
 
@@ -131,15 +111,15 @@ int main(){
 
     nlopt_opt classical_optimizer;
     classical_optimizer = nlopt_create(NLOPT_GN_CRS2_LM, 4);
-    double lower_bounds[4] = {0., 0., 0., 0.};
-    double upper_bounds[4] = {3., 3., 3., 3.};
+    double lower_bounds[4] = {-2., -2., -2., -2.};
+    double upper_bounds[4] = {2., 2., 2., 2.};
     nlopt_set_lower_bounds(classical_optimizer, lower_bounds);
     nlopt_set_upper_bounds(classical_optimizer, upper_bounds);
 
     // Initial guess:
-    double angles[4] = {.1, .1, .1, .1};
+    double angles[4] = {.1, -.1, .1, .1};
     nlopt_set_min_objective(classical_optimizer, vqe_quantum_evaluation, NULL);
-    nlopt_set_ftol_rel(classical_optimizer, 1e-3);
+    nlopt_set_ftol_rel(classical_optimizer, 1e-2);
     //vqe_quantum_evaluation(0,angles,NULL,NULL); // Evaluate once
     
     double minEnergy;

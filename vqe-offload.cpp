@@ -38,44 +38,26 @@ double vqe_quantum_evaluation(unsigned n, const double* angles, double* grad, vo
     // Basis change matrix: U_Z = I, U_X = H, U_Y = HSZ
 
     double energy;
-    #pragma omp target map(to: angles) map(from:energy)
-    {
-    double probabilities[4] = {0., 0., 0., 0.};
+    //#pragma omp target map(to: angles) map(from:energy)
+    //{
 
-    // II
-    energy = -1.052373245772859;
-    // IZ
+    double probabilities[4] = {0., 0., 0., 0.};
     omp_q_reg q_regs = omp_create_q_reg(2);
     prepareState(q_regs, angles);
-    omp_q_measure(q_regs, probabilities);
-    energy += 0.39793742484318045 * (probabilities[0] - probabilities[1] + probabilities[2] - probabilities[3]); // signs from eigenvalues of eigenstates
-
-    // ZI
-    energy += -0.39793742484318045 * (probabilities[0] + probabilities[1] - probabilities[2] - probabilities[3]); // signs from eigenvalues of eigenstates
-
-    // ZZ
-    energy += -0.01128010425623538 * (probabilities[0] - probabilities[1] - probabilities[2] + probabilities[3]); // signs from eigenvalues of eigenstates
-
-    // XX
-    omp_q_reset(q_regs);
-    prepareState(q_regs, angles);
-    omp_q_h(q_regs, 0); // U_X_0
-    omp_q_h(q_regs, 1); // U_X_1
-    omp_q_measure(q_regs, probabilities);
-    energy += 0.18093119978423156 * (probabilities[0] - probabilities[1] - probabilities[2] + probabilities[3]); // signs from eigenvalues of eigenstates
-    }
-    
-    
-
+    omp_q_observable hamiltonian = omp_q_create_observable(2);
+    energy = -1.052373245772859; // II
+    omp_q_observable_add_term(hamiltonian, "IZ",  0.39793742484318045);
+    omp_q_observable_add_term(hamiltonian, "ZI", -0.39793742484318045);
+    omp_q_observable_add_term(hamiltonian, "ZZ", -0.01128010425623538);
+    omp_q_observable_add_term(hamiltonian, "XX", 0.18093119978423156);
+    energy += omp_q_expval(q_regs, hamiltonian, probabilities);
     std::cout << "Iteration " << vqe_interation_count << "  | energy = " << energy << std::endl;
     std::cout << "Parameters: \n";
     for (int i = 0; i < 8; i++)
     {
-        std::cout << "p["<<i<<"] = " << angles[i] << std::endl;
+        std::cout << "p[" << i << "] = " << angles[i] << std::endl;
     }
     return energy;
-
-    
 }
 
 
@@ -98,10 +80,10 @@ int main(){
     double angles[8] = {4.1, -5.1, -3.1, 2.1, -4.1, 1.1, 4.1, -4.1};
     nlopt_set_min_objective(classical_optimizer, vqe_quantum_evaluation, NULL);
     nlopt_set_ftol_rel(classical_optimizer, 1e-3);
-    vqe_quantum_evaluation(0,angles,NULL,NULL); // Evaluate once
+    //vqe_quantum_evaluation(0,angles,NULL,NULL); // Evaluate once
     
     double minEnergy;
-    //nlopt_optimize(classical_optimizer, angles, &minEnergy); // Minimizer
+    nlopt_optimize(classical_optimizer, angles, &minEnergy); // Minimizer
     std::cout << "found minimum after " << vqe_interation_count << " evaluations. Minimum energy = " << minEnergy << std::endl;
 
     nlopt_destroy(classical_optimizer);
