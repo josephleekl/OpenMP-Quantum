@@ -80,10 +80,6 @@ double vqe(unsigned n, const double* angles, double* grad, void* f_data)
 }
 
 
-
-
-
-
 int main(){
     omp_q_python_initialize();
 
@@ -119,8 +115,8 @@ int main(){
     nlopt_set_min_objective(opt, vqe, NULL);
 
     nlopt_set_ftol_rel(opt, 1e-3);
-
-    nlopt_optimize(opt, angles, &minEnergy);
+    vqe(0,angles,NULL,NULL);
+    //nlopt_optimize(opt, angles, &minEnergy);
     std::cout << "found minimum after " << count << " evaluations. Minimum energy = " << minEnergy << std::endl;
     nlopt_destroy(opt);
     omp_q_python_finalize();

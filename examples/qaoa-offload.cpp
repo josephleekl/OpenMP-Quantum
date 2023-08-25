@@ -1,15 +1,27 @@
 #include <omp.h>
 #include <iostream>
 #include <nlopt.h>
+extern "C"
+{
 #include "omp_q.h"
+}
+
 #include <bitset>
 
+#define NUMQUBIT 4
+/*
+This example demonstrates a max-cut QAOA implementation.
+We use a 2-layer trial function with 8 parameters,
+and the problem has 4 nodes/qubits which are connected
+in a square. The optimimum cut solutions are
+(0101) and (1010).
 
-int vqe_interation_count = 0;
-// https://pennylane.ai/qml/demos/tutorial_qaoa_maxcut
+Reference:
+https://pennylane.ai/qml/demos/tutorial_qaoa_maxcut
+*/
 
-// Prepare quantum state given angle parameters: 2 layers
-void prepareState(omp_q_reg &q_reg , const double* parameters)
+// Prepare quantum state given 8 angle parameters: 2 layers
+void prepareState(omp_q_reg *q_reg , const double* parameters)
 {
     omp_q_h(q_reg, 0);
     omp_q_h(q_reg, 1);
@@ -56,6 +68,8 @@ void prepareState(omp_q_reg &q_reg , const double* parameters)
     omp_q_rx(q_reg, 3, parameters[3] * 2.);
 }
 
+int vqe_interation_count = 0;
+
 double vqe_quantum_evaluation(unsigned n, const double* angles, double* grad, void* f_data)
 {
     ++vqe_interation_count;
@@ -67,18 +81,19 @@ double vqe_quantum_evaluation(unsigned n, const double* angles, double* grad, vo
     //{
     
         energy = 0.;
-        omp_q_reg q_regs = omp_create_q_reg(4);
+        omp_q_reg *q_regs = omp_create_q_reg(NUMQUBIT);
         prepareState(q_regs, angles);
 
         // Graph: [(0, 1), (0, 3), (1, 2), (2, 3)]
-        omp_q_observable hamiltonian = omp_q_create_observable(4);
+        omp_q_observable *hamiltonian = omp_q_create_observable(4);
         omp_q_observable_add_term(hamiltonian, "IIZZ", 1.);
         omp_q_observable_add_term(hamiltonian, "ZZII", 1.);
         omp_q_observable_add_term(hamiltonian, "ZIIZ", 1.);
         omp_q_observable_add_term(hamiltonian, "IZZI", 1.);
 
         energy = omp_q_expval(q_regs, hamiltonian, probabilities);
-
+        omp_destroy_q_reg(q_regs);
+        omp_destroy_q_observable(hamiltonian);
     
     //}
     
@@ -92,10 +107,7 @@ double vqe_quantum_evaluation(unsigned n, const double* angles, double* grad, vo
     }
 
     std::cout << "Probability distribution: \n";
-    for (int i = 0; i < 16; i++)
-    {
-        std::cout << "probabilities[" << std::bitset<4>(i) << "] = " << probabilities[i] << std::endl;
-    }
+    omp_q_print_probabilities(probabilities, NUMQUBIT);
     return energy;
 
     
