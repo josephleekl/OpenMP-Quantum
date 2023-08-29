@@ -18,9 +18,9 @@ void bell_0()
         omp_q_cx(qregs, 0, 1);
 
         // QASM saved to 'circuit.qasm', then simulate with Qiskit,
-        omp_q_python_initialize();
+        //omp_q_python_initialize();
         omp_q_measure(qregs, probabilities);
-        omp_q_python_finalize();
+        //omp_q_python_finalize();
         omp_destroy_q_reg(qregs);
 
     }

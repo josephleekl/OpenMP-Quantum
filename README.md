@@ -1,8 +1,17 @@
 # OpenMP-Quantum
 A small C library to support offloading quantum circuit computation via OpenMP target interface. 
-# Dependencies
-- Python and Qiskit required for QASM simulation. 
-- LLVM with OpenMP runtime (Currently only tested on x86_64, see `cirrus-compile-llvm.sh` for example).
-- NLOPT optimizer.
-- JANSSON and RABBITMQ for communication with LRZ quantum daemon.
 
+Applications can use this library in C/C++ applications to offload quantum circuit computation to a separate target device (e.g. another x86 core), which manages the communication with an actual quantum device or an emulator, keeping the main thread free for classical computation while waiting for the quantum result.
+
+# Components
+Currently the main components of the library includes:
+`omp_q.c`/`omp_q.h` : Manages circuits, operators, and measurement interface. Output circuits into OpenQASM 2.0 and QIR.
+`simulate_qiskit.c`/`simulate_qiskit.h`: Invokes Python Qiskit to simulate QASM circuit.
+`simulate_lrz.c`/`simulate_lrz.h`: Communicates with LRZ quantum daemon (QLM or quantum hardware).
+
+# Dependencies
+To build this library, there are a few dependencies:
+- [LLVM with OpenMP](https://openmp.llvm.org/) runtime (Currently only tested on x86_64, see `cirrus-compile-llvm.sh` for configuration example).
+- Python and [Qiskit](https://qiskit.org/) required for QASM simulation. 
+- [NLOPT](https://nlopt.readthedocs.io/en/latest/) optimizer for VQE/QAOA examples
+- [JANSSON](https://github.com/akheron/jansson) and [RABBITMQ-C](https://github.com/alanxz/rabbitmq-c) for communication with LRZ quantum daemon.

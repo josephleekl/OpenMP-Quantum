@@ -1,16 +1,4 @@
-#include "rabbitmq-c/amqp.h"
-#include "rabbitmq-c/tcp_socket.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include "jansson.h"
-#include "omp_q.h"
-
-#define HOSTNAME "localhost"
-#define PORT 5672
-#define REQUESTQUEUE "qd_qrequest_reception_queue_137"
-#define RESULTQUEUE "qlm_test_dest"
-#define QPU "Test Q5"
-#define RESPONSESIZE 150
+#include "simulate_lrz.h"
 
 void die_on_error(int x, char const *context)
 {
@@ -87,6 +75,50 @@ void connectToTheRabbitMQ(amqp_connection_state_t *Connection,
     amqp_get_rpc_reply(*Connection);
 }
 
+
+char* replaceNewlinesCopy(const char *input, const char *search, const char *replace) {
+
+    size_t searchLen = strlen(search);
+    size_t replaceLen = strlen(replace);
+
+    size_t resultLength = 0;
+    const char *pos = input;
+
+    while (*pos) {
+        if (strncmp(pos, search, searchLen) == 0) {
+            resultLength += replaceLen;
+            pos += searchLen;
+        } else {
+            resultLength++;
+            pos++;
+        }
+    }
+
+    char *result = (char *)malloc(resultLength + 1);
+    if (!result) {
+        fprintf(stderr, "\nmalloc error\n");
+        return NULL;
+    }
+
+    char *resultPos = result;
+    pos = input;
+
+    while (*pos) {
+        if (strncmp(pos, search, searchLen) == 0) {
+            strncpy(resultPos, replace, replaceLen);
+            resultPos += replaceLen;
+            pos += searchLen;
+        } else {
+            *resultPos++ = *pos++;
+        }
+    }
+
+    *resultPos = '\0'; // Null-terminate the new string
+    return result;
+}
+
+
+
 char *createTheRequest(struct omp_q_reg *q_reg, int shots)
 {
 
@@ -98,17 +130,20 @@ char *createTheRequest(struct omp_q_reg *q_reg, int shots)
     strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
     puts(buffer);
 
-    const char *json_template = "{\"task_idd\": %d, \"n_qbits\": %d, \"n_shots\": %d, \"circuit_file\": \"OPENQASM 2.0;\\ninclude \\\"qelib1.inc\\\";\\n%s\", \"circuit_file_type\": \"%s\", \"result_destination\": \"%s\", \"prefered_qpu\": \"%s\", \"prioirity\": %d, \"optimisation_level\": %d, \"transpiler_flag\": %s, \"result_type\": %d, \"submit_time\": \"%s\"}";
+    char* circuit_file_change_newline = replaceNewlinesCopy(q_reg->qasm_ops,"\n", "\\n");
+    char* circuit_file_change_quotes = replaceNewlinesCopy(circuit_file_change_newline,"\"", "\\\"");
+
+    const char *json_template = "{\"task_idd\": %d, \"n_qbits\": %d, \"n_shots\": %d, \"circuit_file\": \"%s\", \"circuit_file_type\": \"%s\", \"result_destination\": \"%s\", \"prefered_qpu\": \"%s\", \"prioirity\": %d, \"optimisation_level\": %d, \"transpiler_flag\": %s, \"result_type\": %d, \"submit_time\": \"%s\"}";
 
     int task_id = 666;
     int n_qbits = q_reg->num_q;
     int n_shots = shots;
-    const char *circuit_file = q_reg->qasm_ops;
+    const char *circuit_file = circuit_file_change_quotes;
     const char *circuit_file_type = "qasm";
     const char *result_destination = RESULTQUEUE;
     const char *prefered_qpu = QPU;
     int priority = 0;
-    int optimization_level = 0;
+    int optimization_level = 3;
     const char *transpiler_flag = "true";
     int result_type = 0;
     const char *submit_time = buffer;
@@ -126,7 +161,8 @@ char *createTheRequest(struct omp_q_reg *q_reg, int shots)
              result_destination, prefered_qpu, priority, optimization_level, transpiler_flag,
              result_type, submit_time);
     printf(json_str);
-    printf("\nso we didn't get here?\n");
+    free(circuit_file_change_newline);
+    free(circuit_file_change_quotes);
     return json_str;
 }
 
@@ -148,7 +184,6 @@ char *startConsume(amqp_connection_state_t *Connection, char *Queue)
 {
 
     amqp_bytes_t queuename;
-    printf("%d\n", amqp_cstring_bytes(Queue));
     amqp_queue_declare_ok_t *r = amqp_queue_declare(*Connection, 1, amqp_cstring_bytes(Queue), 0, 0, 0, 0, amqp_empty_table);
     die_on_amqp_error(amqp_get_rpc_reply(*Connection), "Declaring queue");
     queuename = amqp_bytes_malloc_dup(r->queue);
@@ -183,7 +218,7 @@ char *startConsume(amqp_connection_state_t *Connection, char *Queue)
             break;
         }
 
-        printf("Delivery %u\n", (unsigned)envelope.delivery_tag);
+        printf("\nDelivery %u\n", (unsigned)envelope.delivery_tag);
 
         if (envelope.message.properties._flags & AMQP_BASIC_CONTENT_TYPE_FLAG)
         {
@@ -197,7 +232,7 @@ char *startConsume(amqp_connection_state_t *Connection, char *Queue)
         char *temp = (char *)envelope.message.body.bytes;
 
         strcpy(TheResponse, temp);
-        amqp_destroy_envelope(&envelope);
+        //amqp_destroy_envelope(&envelope);
         break;
     }
     return TheResponse;
@@ -211,10 +246,18 @@ void closeConnections(amqp_connection_state_t *Connection)
     amqp_destroy_connection(*Connection);
 }
 
-void parseTheResponse(char *response)
+void parseTheResponse(char *response, int shots, double meas_probabilities[])
 {
     json_error_t error;
-    json_t *root = json_loads(response, 0, &error);
+    printf("%s\n", response);
+    json_t *root = json_loads(response, JSON_DISABLE_EOF_CHECK, &error);
+
+    // Check if parsing was successful
+    if (!root) {
+        fprintf(stderr, "JSON parsing error on line %d: %s\n", error.line, error.text);
+        assert(1);
+    }
+    
     json_t *task_id = json_object_get(root, "task_id");
     json_t *results = json_object_get(root, "results");
     json_t *destination = json_object_get(root, "destination");
@@ -222,24 +265,45 @@ void parseTheResponse(char *response)
     json_t *additional_information =
         json_object_get(root, "additional_information");
     json_t *execution_time = json_object_get(root, "execution_time");
+    
     int value_task_id = json_integer_value(task_id);
-    const char *value_result_id = json_string_value(results);
     const char *destination_str = json_string_value(destination);
     int execution = json_boolean_value(execution_status);
     const char *additional_information_str =
         json_string_value(additional_information);
-    int execution_time_d = json_integer_value(execution_time);
+    double execution_time_d = json_real_value(execution_time);
 
-    printf("Name: %d\n", value_task_id);
-    printf("result: %s\n", value_result_id);
-    printf("destination: %s\n", destination_str);
-    printf("execution: %d\n", execution);
-    printf("additional_information : %s\n", additional_information_str);
-    printf("execution_time_d : %d\n", execution_time_d);
+    printf("Task ID: %d\n", value_task_id);
+    printf("Destination: %s\n", destination_str);
+    printf("Execution: %d\n", execution);
+    printf("Additional Information: %s\n", additional_information_str);
+    printf("Execution Time: %lf\n", execution_time_d);
+
+    // Handle the 'results' object with key-value pairs
+    if (json_is_object(results)) {
+        const char *key;
+        json_t *value;
+
+        json_object_foreach(results, key, value) {
+            char *endptr;
+            long int index = strtol(key, &endptr, 2);
+            if (*endptr != '\0')
+            {
+                printf("Conversion error: The input is not a valid binary number.\n");
+                assert(0);
+            }
+            int result_value = json_integer_value(value);
+            meas_probabilities[index] = result_value/(double)shots;
+            printf("Result %s: %d\n", key, result_value);
+        }
+    }
+    
+    // Cleanup
+    json_decref(root);
 }
 
 
-void lrz_measure(struct omp_q_reg *q_reg, int shots) //i.e. execute
+void lrz_measure(struct omp_q_reg *q_reg, int shots, double meas_probabilities[]) 
 {
 
     amqp_connection_state_t SendConnection, ListenConnection;
@@ -250,15 +314,16 @@ void lrz_measure(struct omp_q_reg *q_reg, int shots) //i.e. execute
 
     char *TheRequest = createTheRequest(q_reg, shots);
     char *TheResponse = (char *) malloc(1000 * sizeof(char));
-    //= createTheResponse(circuit, shots);
     connectToTheRabbitMQ(&SendConnection, &SendSocket);
 
     connectToTheRabbitMQ(&ListenConnection, &Listensocket);
 
     publishTheString(&SendConnection, TheRequest, REQUESTQUEUE);
-    // publishTheString(&ListenConnection, TheResponse, RESULTQUEUE);
     TheResponse = startConsume(&ListenConnection, RESULTQUEUE);
+
     closeConnections(&ListenConnection);
     closeConnections(&SendConnection);
-    parseTheResponse(TheResponse);
+    parseTheResponse(TheResponse, shots, meas_probabilities);
+
+    free(TheResponse);
 }

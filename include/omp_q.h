@@ -4,10 +4,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-// For Qiskit Simulator
-#include <Python.h>
+#include "simulate_lrz.h"
+#include "simulate_qiskit.h"
 
-#include <omp_q.h>
 
 #define MAX_STRING_SIZE 16384
 #define MAX_OP_SIZE 65536
@@ -47,12 +46,6 @@ enum pauli
     pauli_Y,
     pauli_Z
 };
-
-void omp_q_python_initialize();
-
-void omp_q_python_finalize();
-
-int qiskit_simulate(const char *qasm_filename, int num_qubits, double meas_probabilities[], int shots);
 
 void omp_q_reset(struct omp_q_reg *q_reg);
 
@@ -114,6 +107,7 @@ struct omp_q_observable
 };
 
 struct omp_q_observable *omp_q_create_observable(int num_q);
+
 void omp_destroy_q_observable(struct omp_q_observable *q_observable);
 
 void omp_q_observable_add_term(struct omp_q_observable *q_observable, const char *pauli_string, const double coefficient);

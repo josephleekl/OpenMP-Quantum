@@ -48,8 +48,8 @@ double vqe_quantum_evaluation(unsigned n, const double* angles, double* grad, vo
         ("XX", 0.18093119978423156)
     ] */
     double energy;
-    //#pragma omp target map(to: angles) map(from:energy)
-    //{
+    #pragma omp target map(to: angles) map(from:energy)
+    {
 
     double probabilities[1 << NUMQUBITS] = {0., 0., 0., 0.};
     omp_q_reg *q_regs = omp_create_q_reg(NUMQUBITS);
@@ -63,6 +63,7 @@ double vqe_quantum_evaluation(unsigned n, const double* angles, double* grad, vo
     energy += omp_q_expval(q_regs, hamiltonian, probabilities);
     omp_destroy_q_observable(hamiltonian);
     omp_destroy_q_reg(q_regs);
+    }
     std::cout << "Iteration " << vqe_interation_count << "  | energy = " << energy << std::endl;
     std::cout << "Parameters: \n";
     for (int i = 0; i < 8; i++)

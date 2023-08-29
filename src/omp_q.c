@@ -3,80 +3,9 @@
 #include <string.h>
 #include <math.h>
 // For Qiskit Simulator
-#include <Python.h>
 
 #include "omp_q.h"
-
 //   call Python Qiskit simulator
-void omp_q_python_initialize()
-{
-    Py_Initialize();
-}
-
-void omp_q_python_finalize()
-{
-    Py_Finalize();
-}
-
-int qiskit_simulate(const char *qasm_filename, int num_qubits, double meas_probabilities[], int shots)
-{
-    PyObject *pName, *pModule, *pFunc, *pArgs, *pReturnValue;
-    pName = PyUnicode_DecodeFSDefault("qasm_simulator"); 
-     pModule = PyImport_Import(pName);
-     Py_DECREF(pName);
-     PyObject *pQasmFile = PyUnicode_DecodeUTF8(qasm_filename, strlen(qasm_filename), "replace");
-     if (pModule != NULL)
-     {
-         pFunc = PyObject_GetAttrString(pModule, "simulate");
-
-         if (pFunc && PyCallable_Check(pFunc))
-         {
-             pArgs = PyTuple_Pack(3, pQasmFile, PyLong_FromLong(num_qubits), PyLong_FromLong(shots));
-
-             pReturnValue = PyObject_CallObject(pFunc, pArgs);
-
-             if (pReturnValue != NULL && PyList_Check(pReturnValue))
-             {
-
-                 // Convert Python list to array of doubles
-                 Py_ssize_t listSize = PyList_Size(pReturnValue);
-
-                 for (Py_ssize_t i = 0; i < listSize; ++i)
-                 {
-                     PyObject *pItem = PyList_GetItem(pReturnValue, i);
-                     meas_probabilities[i] = PyFloat_AsDouble(pItem);
-
-                 }
-                 Py_DECREF(pReturnValue);
-
-             }
-             else
-             {
-                 Py_DECREF(pFunc);
-                 Py_DECREF(pModule);
-                 PyErr_Print();
-                 fprintf(stderr, "call failed\n");
-                 return 1;
-             }
-         }
-         else
-         {
-             if (PyErr_Occurred())
-                 PyErr_Print();
-             fprintf(stderr, "Cannot find function \"%s\"\n", "simulate");
-         }
-         Py_XDECREF(pFunc);
-         Py_DECREF(pModule);
-     }
-     else
-     {
-         PyErr_Print();
-         fprintf(stderr, "Failed to load \"%s\"\n", qasm_filename);
-         return 1;
-     }
-    return 0;
-}
-
 // quantum registers and operations in QASM
 
 void omp_q_reset(struct omp_q_reg *q_reg)
@@ -637,8 +566,11 @@ int omp_q_measure(struct omp_q_reg *q_reg, double meas_probabilities[])
     // Save to qasm string to file
     char qasmfilename[] = "circuit.qasm";
     FILE *qasmfile = fopen(qasmfilename, "w");
+    char *buffer = (char *)malloc(1000);
+    sprintf(buffer, "creg c[%u];\nmeasure q -> c;\n", q_reg->num_q);
+    strcat(q_reg->qasm_ops, buffer);
+    free(buffer);
     fprintf(qasmfile, q_reg->qasm_ops);
-    fprintf(qasmfile, "creg c[%u];\nmeasure q -> c;\n", q_reg->num_q);
     fclose(qasmfile);
 
     char qirfilename[] = "circuit.ll";
@@ -688,10 +620,12 @@ int omp_q_measure(struct omp_q_reg *q_reg, double meas_probabilities[])
     fprintf(qirfile, "!3 = ! { i32 1, !\"dynamic_result_management\", i1 false }\n");
     fclose(qirfile);
 
-    omp_q_reset(q_reg);
     // Simulate
-    qiskit_simulate(qasmfilename, q_reg->num_q, meas_probabilities, SHOTS);
-
+    //qiskit_simulate(qasmfilename, q_reg->num_q, meas_probabilities, SHOTS);
+    lrz_measure(q_reg, SHOTS, meas_probabilities);
+    
+    
+    omp_q_reset(q_reg);
 
     return 0;
 }
