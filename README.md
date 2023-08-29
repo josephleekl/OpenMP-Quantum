@@ -5,9 +5,9 @@ Applications can use this library in C/C++ applications to offload quantum circu
 
 # Components
 Currently the main components of the library includes:
-`omp_q.c`/`omp_q.h` : Manages circuits, operators, and measurement interface. Output circuits into OpenQASM 2.0 and QIR.
-`simulate_qiskit.c`/`simulate_qiskit.h`: Invokes Python Qiskit to simulate QASM circuit.
-`simulate_lrz.c`/`simulate_lrz.h`: Communicates with LRZ quantum daemon (QLM or quantum hardware).
+- `omp_q` : Manages circuits, operators, and measurement interface. Output circuits into OpenQASM 2.0 and QIR.
+- `simulate_qiskit`: Invokes Python Qiskit to simulate QASM circuit.
+- `simulate_lrz`: Communicates with LRZ quantum daemon (QLM or quantum hardware).
 
 # Dependencies
 To build this library, there are a few dependencies:
