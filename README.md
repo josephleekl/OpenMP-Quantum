@@ -11,7 +11,12 @@ Currently the main components of the library includes:
 
 # Dependencies
 To build this library, there are a few dependencies:
-- [LLVM with OpenMP](https://openmp.llvm.org/) runtime (Currently only tested on x86_64, see `cirrus-compile-llvm.sh` for configuration example).
+- [LLVM with OpenMP](https://openmp.llvm.org/) runtime (Currently only tested on x86_64, see `cirrus-compile-llvm.sh` or `lrz-compile-llvm.sh` for configuration example).
 - Python and [Qiskit](https://qiskit.org/) required for QASM simulation. 
 - [NLOPT](https://nlopt.readthedocs.io/en/latest/) optimizer for VQE/QAOA examples
 - [JANSSON](https://github.com/akheron/jansson) and [RABBITMQ-C](https://github.com/alanxz/rabbitmq-c) for communication with LRZ quantum daemon.
+
+# Scripts
+- Use `lrz-compile-llvm.sh` to build a LLVM with OpenMP runtime
+- Use `build-lrz.sh` to build `libOMPQ` and examples in `build/`
+- Use `run-lrz.sh` to run example

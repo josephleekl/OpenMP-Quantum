@@ -60,7 +60,10 @@ double vqe_quantum_evaluation(unsigned n, const double* angles, double* grad, vo
     omp_q_observable_add_term(hamiltonian, "ZI", -0.39793742484318045);
     omp_q_observable_add_term(hamiltonian, "ZZ", -0.01128010425623538);
     omp_q_observable_add_term(hamiltonian, "XX", 0.18093119978423156);
+
+
     energy += omp_q_expval(q_regs, hamiltonian, probabilities);
+    
     omp_destroy_q_observable(hamiltonian);
     omp_destroy_q_reg(q_regs);
     }
@@ -110,7 +113,7 @@ int main(){
 
     std::cout << "found minimum after " << vqe_interation_count << " evaluations. Minimum energy = " << minEnergy << std::endl;
     std::cout << "reference value = -1.85727" << std::endl;
-
+    
     nlopt_destroy(classical_optimizer);
     omp_q_python_finalize();
     return 0;

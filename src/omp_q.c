@@ -621,8 +621,8 @@ int omp_q_measure(struct omp_q_reg *q_reg, double meas_probabilities[])
     fclose(qirfile);
 
     // Simulate
-    //qiskit_simulate(qasmfilename, q_reg->num_q, meas_probabilities, SHOTS);
-    lrz_measure(q_reg, SHOTS, meas_probabilities);
+    qiskit_simulate(qasmfilename, q_reg->num_q, meas_probabilities, SHOTS);
+    //lrz_measure(q_reg, SHOTS, meas_probabilities);
     
     
     omp_q_reset(q_reg);
@@ -639,6 +639,7 @@ struct omp_q_observable* omp_q_create_observable(int num_q)
     if (q_observable != NULL)
     {
         q_observable->num_q = num_q;
+        q_observable->num_terms = 0;
         return q_observable;
     }
     else
@@ -649,6 +650,14 @@ struct omp_q_observable* omp_q_create_observable(int num_q)
 
 void omp_destroy_q_observable(struct omp_q_observable* q_observable)
 {
+    for (int term = 0; term < q_observable->num_terms; term++)
+    {
+        if (q_observable->pauli_strings[term] != NULL)
+        {
+            free(q_observable->pauli_strings[term]);
+        }
+    }
+
     if (q_observable != NULL)
     {
         free(q_observable);
@@ -659,7 +668,7 @@ void omp_destroy_q_observable(struct omp_q_observable* q_observable)
     }
 }
 
-    void omp_q_observable_add_term(struct omp_q_observable *q_observable, const char *pauli_string, const double coefficient)
+void omp_q_observable_add_term(struct omp_q_observable *q_observable, const char *pauli_string, const double coefficient)
 {
     q_observable->pauli_strings[q_observable->num_terms] = (int *)malloc(sizeof(int) * q_observable->num_q);
     assert(strlen(pauli_string) == q_observable->num_q);
@@ -696,13 +705,15 @@ double omp_q_expval(const struct omp_q_reg *q_reg, struct omp_q_observable *obse
     int eigenvalues[q_reg->num_q];
     for (int term = 0; term < observable->num_terms; term++)
     {
-    strcpy(q_reg_copy->qasm_ops, q_reg->qasm_ops);
-    strcpy(q_reg_copy->qir_main, q_reg->qir_main);
-    strcpy(q_reg_copy->qir_define, q_reg->qir_define); 
-    strcpy(q_reg_copy->qir_declare, q_reg->qir_declare);
-    for(int i = 0; i < MAX_OBSERVABLE_TERMS; i++)
-        q_reg_copy->qir_declared[i] = q_reg->qir_declared[i];
-    double single_term_value = 0;
+        strcpy(q_reg_copy->qasm_ops, q_reg->qasm_ops);
+        strcpy(q_reg_copy->qir_main, q_reg->qir_main);
+        strcpy(q_reg_copy->qir_define, q_reg->qir_define); 
+        strcpy(q_reg_copy->qir_declare, q_reg->qir_declare);
+        for(int i = 0; i < MAX_OBSERVABLE_TERMS; i++)
+        {
+            q_reg_copy->qir_declared[i] = q_reg->qir_declared[i];
+        }
+        double single_term_value = 0;
         for (int qubit = 0; qubit < q_reg->num_q; qubit++)
         {
             switch (observable->pauli_strings[term][qubit])
@@ -727,7 +738,7 @@ double omp_q_expval(const struct omp_q_reg *q_reg, struct omp_q_observable *obse
         }
 
         omp_q_measure(q_reg_copy, probabilities);
-   
+
         for (int state = 0; state < (1 << q_reg_copy->num_q); state++)
         {
             
@@ -742,9 +753,10 @@ double omp_q_expval(const struct omp_q_reg *q_reg, struct omp_q_observable *obse
 
         }
         value += observable->coeffs[term] * single_term_value;
-        free(observable->pauli_strings[term]);
+
     }
     omp_destroy_q_reg(q_reg_copy);
+
     return value;
 }
 

@@ -119,7 +119,7 @@ double vqe_quantum_evaluation(unsigned n, const double* angles, double* grad, vo
 
 
 int main(){
-    //omp_q_python_initialize();
+    omp_q_python_initialize();
 
     nlopt_opt classical_optimizer;
     classical_optimizer = nlopt_create(NLOPT_GN_CRS2_LM, 4);
@@ -132,13 +132,13 @@ int main(){
     double angles[4] = {.1, -.1, .1, .1};
     nlopt_set_min_objective(classical_optimizer, vqe_quantum_evaluation, NULL);
     nlopt_set_ftol_rel(classical_optimizer, 1e-2);
-    vqe_quantum_evaluation(0,angles,NULL,NULL); // Evaluate once
+    //vqe_quantum_evaluation(0,angles,NULL,NULL); // Evaluate once
     
     double minEnergy;
-    //nlopt_optimize(classical_optimizer, angles, &minEnergy); // Minimizer
+    nlopt_optimize(classical_optimizer, angles, &minEnergy); // Minimizer
     //std::cout << "found minimum after " << vqe_interation_count << " evaluations. Minimum energy = " << minEnergy << std::endl;
 
     nlopt_destroy(classical_optimizer);
-    //omp_q_python_finalize();
+    omp_q_python_finalize();
     return 0;
 }

@@ -4,7 +4,6 @@ project(OpenMP-Quantum)
 # Clang must be built with OpenMP runtime
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
-
 set(PYTHON_DIR "" CACHE PATH "Path to Python root directory")
 set(NLOPT_DIR "" CACHE PATH "Path to nlopt root directory")
 set(RABBITMQ_DIR "" CACHE PATH "Path to rabbitmq-c root directory")

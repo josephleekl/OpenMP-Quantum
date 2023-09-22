@@ -14,12 +14,16 @@ foreach(EXAMPLE_SOURCE ${EXAMPLE_SOURCES})
         util
         rabbitmq::rabbitmq
         ${NLOPT_LINK_LIBRARIES}
-        ${Python3_LIBRARIES}
+        #${Python3_LIBRARIES}
         ${JANSSON_LIBRARIES}
     )
     set_target_properties(${EXAMPLE_NAME} PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES)
 
     target_compile_options(${EXAMPLE_NAME} PRIVATE
-        -g -O3 -fopenmp -fopenmp-offload-mandatory -fopenmp-targets=x86_64 -Xopenmp-target=x86_64 --offload-arch=x86_64
+        -stdlib=libc++ -g -O3 -fopenmp -fopenmp-offload-mandatory -fopenmp-targets=x86_64 -Xopenmp-target=x86_64 --offload-arch=x86_64
+    )
+
+    target_link_options(${EXAMPLE_NAME} PRIVATE
+        -stdlib=libc++ -fopenmp -fopenmp-offload-mandatory -fopenmp-targets=x86_64 -Xopenmp-target=x86_64 --offload-arch=x86_64 -L../src -lOMPQ
     )
 endforeach()

@@ -1,8 +1,8 @@
 import qiskit
-#from qiskit import Aer, transpile
 from qiskit import BasicAer, transpile
 
 def simulate(filename, num_qubits, shots):
+    print("Simulating in Python:")
     circuit = qiskit.qasm2.load(filename)
     backend = BasicAer.get_backend('qasm_simulator')
     job = backend.run(transpile(circuit, backend), shots=shots)
