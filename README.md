@@ -1,7 +1,7 @@
 # OpenMP-Quantum
 A small C library to support offloading quantum circuit computation via OpenMP target interface. 
 
-Applications can use this library in C/C++ applications to offload quantum circuit computation to a separate target device (e.g. another x86 core), which manages the communication with an actual quantum device or an emulator, keeping the main thread free for classical computation while waiting for the quantum result.
+Applications in C/C++ can use this library to offload quantum circuit computation to a separate target device (e.g. another x86 core), which manages the communication with an actual quantum device or an emulator, keeping the main thread free for classical computation while waiting for the quantum result.
 
 # Components
 Currently the main components of the library includes:
